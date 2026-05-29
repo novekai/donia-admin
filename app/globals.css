@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* ───────────────── DONIA · Back-office tokens ───────────────── */
+:root {
+  /* Brand */
+  --color-indigo: #41087B;
+  --color-indigo-deep: #2A0454;
+  --color-coral: #F4486F;
+  --color-coral-deep: #D62E55;
+  --color-pink: #ED4673;
+  --color-mango: #F9A01C;
+  --color-mango-deep: #D9871F;
+  --color-mint: #5DBFA0;
+  --color-plum: #7B278C;
+  --color-green: #5C8A45;
+
+  /* Neutrals — admin uses warm cream as canvas */
+  --color-bg: #F4E9D6;
+  --color-surface: #FFFFFF;
+  --color-ink: #2A0F1A;
+  --color-ink-2: #6F4A5A;
+  --color-ink-3: #B59AA5;
+  --color-cream-soft: #FDF7F6;
+  --color-line: rgba(42, 15, 26, 0.08);
+
+  /* Gradients */
+  --gradient-coral: linear-gradient(140deg, #F4486F 0%, #D62E55 100%);
+  --gradient-indigo: linear-gradient(160deg, #41087B 0%, #2A0454 100%);
+  --gradient-mango: linear-gradient(140deg, #F9A01C 0%, #D9871F 100%);
+}
+
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-ink);
+  --font-display: var(--font-fraunces);
+  --font-body: var(--font-bricolage);
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-bricolage), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+/* Custom scrollbar (matches prototype) */
+.scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(42, 24, 16, 0.15);
+  border-radius: 4px;
+}
+.scroll::-webkit-scrollbar-track { background: transparent; }
+
+/* Slow spin decoration used in cards / sidebar */
+@keyframes c-spin-slow {
+  to { transform: rotate(360deg); }
+}
+.c-spin-slow { animation: c-spin-slow 80s linear infinite; }
+
+/* Live pulse */
+@keyframes c-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(92,138,69,0.45); }
+  50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(92,138,69,0); }
+}
+.c-pulse { animation: c-pulse 1.6s ease-in-out infinite; }
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
