@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { C } from "@/lib/colors";
+import { LogoMark } from "@/components/LogoMark";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -73,24 +74,7 @@ export default function LoginPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-          <div
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              background: "linear-gradient(140deg, #F9A01C 0%, #D9871F 100%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "var(--font-fraunces), serif",
-              fontWeight: 500,
-              fontStyle: "italic",
-              fontSize: 26,
-              color: C.indigoDeep,
-            }}
-          >
-            d
-          </div>
+          <LogoMark size={48} />
           <div>
             <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 500, fontSize: 22, letterSpacing: "-0.01em", color: C.ink }}>
               Donia

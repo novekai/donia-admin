@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { C } from "@/lib/colors";
+import { LogoMark } from "./LogoMark";
 
 type NavItem = {
   href: string;
@@ -145,24 +146,7 @@ export function Sidebar() {
           position: "relative",
         }}
       >
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "linear-gradient(140deg, #F9A01C 0%, #D9871F 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "var(--font-fraunces), serif",
-            fontWeight: 500,
-            fontStyle: "italic",
-            fontSize: 22,
-            color: C.indigoDeep,
-          }}
-        >
-          d
-        </div>
+        <LogoMark size={40} />
         <div>
           <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 500, fontSize: 18, letterSpacing: "-0.01em" }}>
             Donia
