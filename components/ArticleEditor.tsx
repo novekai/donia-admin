@@ -4,11 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { C } from "@/lib/colors";
-import { CATEGORIES, COLOR_PRESETS, type Article, type ArticleStatus } from "@/lib/blog-mock";
+import {
+  CATEGORIES,
+  COLOR_PRESETS,
+  createArticle,
+  updateArticle,
+  type Article,
+  type ArticleStatus,
+} from "@/lib/articles";
 
 type Initial = Partial<Article>;
 
-const DEFAULTS: Required<Pick<Article, "category" | "color" | "emoji" | "readMinutes" | "author">> = {
+const DEFAULTS = {
   category: "Conseil",
   color: "#F4486F",
   emoji: "🎂",
@@ -26,12 +33,12 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
   const [emoji, setEmoji] = useState(initial?.emoji ?? DEFAULTS.emoji);
   const [color, setColor] = useState(initial?.color ?? DEFAULTS.color);
   const [readMinutes, setReadMinutes] = useState(initial?.readMinutes ?? DEFAULTS.readMinutes);
-  const [publishedAt, setPublishedAt] = useState(
-    initial?.publishedAt ?? new Date().toISOString().slice(0, 10)
+  const [publishedAt, setPublishedAt] = useState<string>(
+    initial?.publishedAt ? initial.publishedAt.slice(0, 10) : new Date().toISOString().slice(0, 10)
   );
-  const [status, setStatus] = useState<ArticleStatus>(initial?.status ?? "draft");
   const [author, setAuthor] = useState(initial?.author ?? DEFAULTS.author);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<"draft" | "publish" | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   function onTitleChange(v: string) {
     setTitle(v);
@@ -39,13 +46,41 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
   }
 
   async function save(targetStatus: ArticleStatus) {
-    setSaving(true);
-    setStatus(targetStatus);
-    // TODO Phase 2: POST/PATCH /v1/admin/articles
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    router.push("/blog");
+    setError(null);
+    setSaving(targetStatus === "PUBLISHED" ? "publish" : "draft");
+    const payload = {
+      slug: slug || slugify(title),
+      title,
+      category,
+      excerpt,
+      content,
+      emoji,
+      color,
+      readMinutes,
+      author,
+      status: targetStatus,
+      publishedAt: targetStatus === "PUBLISHED" ? new Date(publishedAt).toISOString() : null,
+    };
+    try {
+      if (mode === "new" || !initial?.slug) {
+        await createArticle(payload);
+      } else {
+        await updateArticle(initial.slug, payload);
+      }
+      router.push("/blog");
+      router.refresh();
+    } catch (e) {
+      const err = e as { status?: number; code?: string; message?: string };
+      if (err.code === "SLUG_TAKEN") setError("Ce slug existe déjà — choisis-en un autre");
+      else setError(err.message ?? "Enregistrement impossible");
+      setSaving(null);
+    }
   }
+
+  const titleEmpty = !title.trim();
+  const excerptEmpty = !excerpt.trim();
+  const contentEmpty = !content.trim();
+  const canPublish = !titleEmpty && !excerptEmpty && !contentEmpty;
 
   return (
     <>
@@ -79,7 +114,7 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </Link>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 11, color: C.ink2, letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 700 }}>
             {mode === "new" ? "Nouveau brouillon" : "Édition d'article"}
           </div>
@@ -100,8 +135,8 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
           </div>
         </div>
         <button
-          onClick={() => save("draft")}
-          disabled={saving}
+          onClick={() => save("DRAFT")}
+          disabled={saving !== null || titleEmpty}
           style={{
             height: 40,
             padding: "0 16px",
@@ -112,15 +147,15 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
             fontFamily: "var(--font-fraunces), serif",
             fontWeight: 500,
             fontSize: 13,
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving ? 0.6 : 1,
+            cursor: saving !== null || titleEmpty ? "not-allowed" : "pointer",
+            opacity: saving !== null || titleEmpty ? 0.6 : 1,
           }}
         >
-          {saving && status === "draft" ? "Enregistrement…" : "Enregistrer brouillon"}
+          {saving === "draft" ? "Enregistrement…" : "Enregistrer brouillon"}
         </button>
         <button
-          onClick={() => save("published")}
-          disabled={saving || !title.trim() || !excerpt.trim()}
+          onClick={() => save("PUBLISHED")}
+          disabled={saving !== null || !canPublish}
           style={{
             height: 40,
             padding: "0 18px",
@@ -131,15 +166,14 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
             fontFamily: "var(--font-fraunces), serif",
             fontWeight: 600,
             fontSize: 13,
-            cursor: saving ? "not-allowed" : "pointer",
-            opacity: saving || !title.trim() || !excerpt.trim() ? 0.6 : 1,
+            cursor: saving !== null || !canPublish ? "not-allowed" : "pointer",
+            opacity: saving !== null || !canPublish ? 0.6 : 1,
           }}
         >
-          {saving && status === "published" ? "Publication…" : "Publier ✨"}
+          {saving === "publish" ? "Publication…" : "Publier ✨"}
         </button>
       </div>
 
-      {/* Editor body */}
       <div className="scroll" style={{ flex: 1, overflow: "auto" }}>
         <div
           style={{
@@ -151,8 +185,23 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
             gap: 24,
           }}
         >
-          {/* Main column */}
           <div>
+            {error && (
+              <div
+                style={{
+                  marginBottom: 16,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  background: "rgba(214,46,85,0.08)",
+                  border: `1px solid rgba(214,46,85,0.18)`,
+                  color: C.coralDeep,
+                  fontSize: 13,
+                }}
+              >
+                {error}
+              </div>
+            )}
+
             <Field label="Titre">
               <input
                 value={title}
@@ -175,20 +224,20 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
                 style={{ ...inputStyle, fontFamily: "monospace", fontSize: 13 }}
               />
             </Field>
-            <Field label="Extrait (carte de blog sur le site)" hint="1 à 2 phrases — max 200 caractères">
+            <Field label="Extrait (carte de blog sur le site)" hint="1 à 2 phrases — max 400 caractères">
               <textarea
                 value={excerpt}
-                maxLength={200}
+                maxLength={400}
                 onChange={(e) => setExcerpt(e.target.value)}
                 rows={2}
                 placeholder="Quand la famille est éparpillée…"
                 style={{ ...inputStyle, height: 70, padding: "10px 12px", resize: "vertical" }}
               />
               <div style={{ marginTop: 4, fontSize: 11, color: C.ink3, textAlign: "right", fontFamily: "monospace" }}>
-                {excerpt.length}/200
+                {excerpt.length}/400
               </div>
             </Field>
-            <Field label="Contenu" hint="Markdown supporté (en Phase 2). Pour l'instant, texte brut.">
+            <Field label="Contenu" hint="Texte brut. Le markdown sera supporté plus tard.">
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
@@ -199,7 +248,6 @@ export function ArticleEditor({ mode, initial }: { mode: "new" | "edit"; initial
             </Field>
           </div>
 
-          {/* Right column — properties */}
           <div>
             <div
               style={{

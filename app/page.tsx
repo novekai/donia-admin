@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { C } from "@/lib/colors";
 import { LogoMark } from "@/components/LogoMark";
+import { api, saveSession, hasToken, type ApiError } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,18 +13,34 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (hasToken()) router.replace("/dashboard");
+  }, [router]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setBusy(true);
-    // TODO: branch to /api/admin/login once the backend is wired up.
-    // For now any non-empty pair redirects so we can iterate on UI.
     if (!email.trim() || !password.trim()) {
       setError("Email et mot de passe requis");
-      setBusy(false);
       return;
     }
-    router.push("/dashboard");
+    setBusy(true);
+    try {
+      const data = await api.post<{ token: string; email: string; expiresAt: string }>(
+        "/v1/admin/auth/login",
+        { email: email.trim(), password }
+      );
+      saveSession(data.token, data.email);
+      router.push("/dashboard");
+    } catch (err) {
+      const e = err as ApiError;
+      if (e.status === 401) setError("Email ou mot de passe incorrect");
+      else if (e.status === 403) setError("Accès refusé — cet email n'est pas admin");
+      else if (e.code === "ADMIN_NOT_CONFIGURED") setError("Back-office pas encore configuré côté serveur");
+      else setError(e.message || "Connexion impossible");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -38,7 +55,6 @@ export default function LoginPage() {
         padding: 24,
       }}
     >
-      {/* deco */}
       <svg
         className="c-spin-slow"
         style={{ position: "absolute", top: -120, right: -120, opacity: 0.18 }}
@@ -52,7 +68,13 @@ export default function LoginPage() {
       </svg>
       <svg
         className="c-spin-slow"
-        style={{ position: "absolute", bottom: -160, left: -160, opacity: 0.12, animationDirection: "reverse" }}
+        style={{
+          position: "absolute",
+          bottom: -160,
+          left: -160,
+          opacity: 0.12,
+          animationDirection: "reverse",
+        }}
         width="500"
         height="500"
         viewBox="0 0 100 100"
@@ -76,10 +98,26 @@ export default function LoginPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
           <LogoMark size={48} />
           <div>
-            <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 500, fontSize: 22, letterSpacing: "-0.01em", color: C.ink }}>
+            <div
+              style={{
+                fontFamily: "var(--font-fraunces), serif",
+                fontWeight: 500,
+                fontSize: 22,
+                letterSpacing: "-0.01em",
+                color: C.ink,
+              }}
+            >
               Donia
             </div>
-            <div style={{ fontSize: 11, color: C.mango, letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 700 }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: C.mango,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                fontWeight: 700,
+              }}
+            >
               Back-office
             </div>
           </div>
@@ -97,7 +135,15 @@ export default function LoginPage() {
         >
           Connexion admin
         </h1>
-        <p style={{ marginTop: 6, fontSize: 13, color: C.ink2, fontFamily: "var(--font-fraunces), serif", fontStyle: "italic" }}>
+        <p
+          style={{
+            marginTop: 6,
+            fontSize: 13,
+            color: C.ink2,
+            fontFamily: "var(--font-fraunces), serif",
+            fontStyle: "italic",
+          }}
+        >
           Accès réservé à l&rsquo;équipe NovekAI.
         </p>
 

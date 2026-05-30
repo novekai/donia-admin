@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { C } from "@/lib/colors";
 import { LogoMark } from "./LogoMark";
+import { clearSession, getStoredEmail } from "@/lib/api";
 
 type NavItem = {
   href: string;
@@ -116,6 +117,14 @@ const NAV: NavItem[] = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const adminEmail = typeof window !== "undefined" ? getStoredEmail() : null;
+  const initial = adminEmail?.[0]?.toUpperCase() ?? "A";
+
+  function logout() {
+    clearSession();
+    router.replace("/");
+  }
   return (
     <div
       style={{
@@ -256,18 +265,41 @@ export function Sidebar() {
             fontSize: 14,
           }}
         >
-          E
+          {initial}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 600, fontSize: 13 }}>Espoir K.</div>
+          <div
+            style={{
+              fontFamily: "var(--font-fraunces), serif",
+              fontWeight: 600,
+              fontSize: 13,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {adminEmail ?? "Admin"}
+          </div>
           <div style={{ fontSize: 10, color: C.mango, fontWeight: 600 }}>Admin · NovekAI</div>
         </div>
-        <Link href="/" aria-label="Déconnexion" style={{ color: C.creamSoft }}>
+        <button
+          onClick={logout}
+          aria-label="Déconnexion"
+          style={{
+            background: "transparent",
+            border: 0,
+            color: C.creamSoft,
+            cursor: "pointer",
+            padding: 4,
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-        </Link>
+        </button>
       </div>
     </div>
   );
