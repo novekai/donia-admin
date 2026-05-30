@@ -2,17 +2,26 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { C } from "@/lib/colors";
 import { LogoMark } from "./LogoMark";
-import { clearSession, getStoredEmail } from "@/lib/api";
+import { api, clearSession, getStoredEmail } from "@/lib/api";
 
 type NavItem = {
   href: string;
   label: string;
-  badge?: string;
+  badgeKey?: keyof Badges;
   badgeColor?: "coral" | "mint";
   icon: (color: string) => React.ReactNode;
 };
+
+type Badges = {
+  kycPending: number;
+  articleDrafts: number;
+  anonymesReported: number;
+};
+
+const EMPTY_BADGES: Badges = { kycPending: 0, articleDrafts: 0, anonymesReported: 0 };
 
 const NAV: NavItem[] = [
   {
@@ -30,8 +39,6 @@ const NAV: NavItem[] = [
   {
     href: "/cards",
     label: "Cartes cadeaux",
-    badge: "NEW",
-    badgeColor: "mint",
     icon: (c) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="20 12 20 22 4 22 4 12" />
@@ -57,8 +64,6 @@ const NAV: NavItem[] = [
   {
     href: "/users",
     label: "Utilisateurs",
-    badge: "12",
-    badgeColor: "coral",
     icon: (c) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -83,6 +88,8 @@ const NAV: NavItem[] = [
   {
     href: "/blog",
     label: "Blog",
+    badgeKey: "articleDrafts",
+    badgeColor: "mint",
     icon: (c) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M20 14.66V20a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5.34" />
@@ -93,6 +100,8 @@ const NAV: NavItem[] = [
   {
     href: "/anonymes",
     label: "Anonymes",
+    badgeKey: "anonymesReported",
+    badgeColor: "coral",
     icon: (c) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
         <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
@@ -102,7 +111,7 @@ const NAV: NavItem[] = [
   {
     href: "/kyc",
     label: "KYC à valider",
-    badge: "4",
+    badgeKey: "kycPending",
     badgeColor: "coral",
     icon: (c) => (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -129,6 +138,27 @@ export function Sidebar() {
   const router = useRouter();
   const adminEmail = typeof window !== "undefined" ? getStoredEmail() : null;
   const initial = adminEmail?.[0]?.toUpperCase() ?? "A";
+
+  // Live badge counts — refresh every 60s so admins see new KYC/reports
+  // appear in the sidebar without having to refresh manually.
+  const [badges, setBadges] = useState<Badges>(EMPTY_BADGES);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const stats = await api.get<{ alerts: Badges }>("/v1/admin/stats");
+        if (!cancelled && stats.alerts) setBadges(stats.alerts);
+      } catch {
+        // Silently ignore — keep last known counts on transient errors.
+      }
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
 
   function logout() {
     clearSession();
@@ -189,6 +219,8 @@ export function Sidebar() {
       <nav style={{ flex: 1, position: "relative" }}>
         {NAV.map((item) => {
           const on = pathname === item.href || pathname.startsWith(item.href + "/");
+          const count = item.badgeKey ? badges[item.badgeKey] : 0;
+          const showBadge = item.badgeKey && count > 0;
           const badgeBg = item.badgeColor === "mint" ? C.mint : C.coral;
           return (
             <Link
@@ -227,9 +259,10 @@ export function Sidebar() {
               )}
               {item.icon(on ? C.mango : C.creamSoft)}
               <span style={{ flex: 1 }}>{item.label}</span>
-              {item.badge && (
+              {showBadge && (
                 <span
                   style={{
+                    minWidth: 20,
                     padding: "2px 6px",
                     borderRadius: 5,
                     background: badgeBg,
@@ -237,9 +270,10 @@ export function Sidebar() {
                     fontSize: 10,
                     fontWeight: 700,
                     fontFamily: "var(--font-bricolage), sans-serif",
+                    textAlign: "center",
                   }}
                 >
-                  {item.badge}
+                  {count > 99 ? "99+" : count}
                 </span>
               )}
             </Link>
