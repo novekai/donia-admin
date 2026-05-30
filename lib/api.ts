@@ -72,3 +72,15 @@ export function hasToken(): boolean {
   if (typeof window === "undefined") return false;
   return Boolean(window.localStorage.getItem(TOKEN_KEY));
 }
+
+// Format a number using the French locale (spaces as thousand separators).
+export function formatNumber(n: number): string {
+  return new Intl.NumberFormat("fr-FR").format(n);
+}
+
+// Format an integer that may be huge — 14287 → "14 287", 2410000 → "2,41 M".
+export function compactNumber(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(2).replace(".", ",")} M`;
+  if (Math.abs(n) >= 1_000) return new Intl.NumberFormat("fr-FR").format(n);
+  return n.toString();
+}
