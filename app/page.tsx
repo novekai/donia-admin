@@ -124,7 +124,7 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="username"
-            placeholder="espoir@novekai.agency"
+            placeholder="contact@doniia.com"
             required
             style={inputStyle}
           />
