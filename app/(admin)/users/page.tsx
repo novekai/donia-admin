@@ -327,6 +327,13 @@ function CreditWalletModal({
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
 
+  // TEMP-ADMIN-FIX: parrainage state
+  const [refCode, setRefCode] = useState<string>(user.referralCode);
+  const [fakeCount, setFakeCount] = useState<string>("4");
+  const [fakeAmount, setFakeAmount] = useState<string>("20000");
+  const [referralBusy, setReferralBusy] = useState<string | null>(null);
+  const [referralMsg, setReferralMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   async function onSubmit() {
     const n = Number(amount);
     if (!Number.isFinite(n) || n === 0) {
@@ -352,6 +359,85 @@ function CreditWalletModal({
     }
   }
 
+  async function onClearAdminTx() {
+    if (referralBusy) return;
+    setReferralBusy("clear");
+    setReferralMsg(null);
+    try {
+      const res = await api.post<{ ok: boolean; cleared: number; netReverted: number; newBalance: number }>(
+        `/v1/admin/users/${user.id}/admin-transactions/clear`
+      );
+      setReferralMsg({
+        ok: true,
+        text: `${res.cleared} transactions admin supprimées. Solde : ${formatNumber(res.newBalance)} FCFA.`,
+      });
+      setResult(null);
+    } catch (e) {
+      setReferralMsg({ ok: false, text: (e as { message?: string }).message ?? "Échec du nettoyage" });
+    } finally {
+      setReferralBusy(null);
+    }
+  }
+
+  async function onChangeRefCode() {
+    if (referralBusy) return;
+    setReferralBusy("code");
+    setReferralMsg(null);
+    try {
+      const res = await api.patch<{ ok: boolean; referralCode: string }>(
+        `/v1/admin/users/${user.id}/referral`,
+        { code: refCode.trim() }
+      );
+      setReferralMsg({ ok: true, text: `Code parrainage : ${res.referralCode}` });
+    } catch (e) {
+      setReferralMsg({ ok: false, text: (e as { message?: string }).message ?? "Échec du changement de code" });
+    } finally {
+      setReferralBusy(null);
+    }
+  }
+
+  async function onCreateFakes() {
+    if (referralBusy) return;
+    const c = Number(fakeCount);
+    const a = Number(fakeAmount);
+    if (!Number.isFinite(c) || c < 1 || c > 20) {
+      setReferralMsg({ ok: false, text: "Nombre de filleuls invalide (1 à 20)" });
+      return;
+    }
+    setReferralBusy("create");
+    setReferralMsg(null);
+    try {
+      const res = await api.post<{ ok: boolean; created: number; totalAmountAllocated: number }>(
+        `/v1/admin/users/${user.id}/fake-referrals`,
+        { count: c, totalAmount: Number.isFinite(a) ? a : 0 }
+      );
+      setReferralMsg({
+        ok: true,
+        text: `${res.created} fake filleuls créés (${formatNumber(res.totalAmountAllocated)} FCFA répartis).`,
+      });
+    } catch (e) {
+      setReferralMsg({ ok: false, text: (e as { message?: string }).message ?? "Échec de la création" });
+    } finally {
+      setReferralBusy(null);
+    }
+  }
+
+  async function onDeleteFakes() {
+    if (referralBusy) return;
+    setReferralBusy("delete");
+    setReferralMsg(null);
+    try {
+      const res = await api.del<{ ok: boolean; deleted: number }>(
+        `/v1/admin/users/${user.id}/fake-referrals`
+      );
+      setReferralMsg({ ok: true, text: `${res.deleted} fake filleuls supprimés.` });
+    } catch (e) {
+      setReferralMsg({ ok: false, text: (e as { message?: string }).message ?? "Échec de la suppression" });
+    } finally {
+      setReferralBusy(null);
+    }
+  }
+
   return (
     <div
       onClick={onClose}
@@ -370,7 +456,9 @@ function CreditWalletModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
-          maxWidth: 440,
+          maxWidth: 500,
+          maxHeight: "90vh",
+          overflowY: "auto",
           background: C.surface,
           borderRadius: 18,
           padding: 24,
@@ -378,10 +466,14 @@ function CreditWalletModal({
         }}
       >
         <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 700, fontSize: 18, color: C.ink, marginBottom: 4 }}>
-          Créditer le wallet
+          💰 Ajustements admin
         </div>
         <div style={{ fontSize: 13, color: C.ink2, marginBottom: 18 }}>
           {user.name} · {user.phone}
+        </div>
+
+        <div style={{ fontSize: 11, fontWeight: 700, color: C.ink2, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+          Wallet
         </div>
 
         <label style={{ display: "block", fontSize: 12, color: C.ink2, marginBottom: 6, fontWeight: 600 }}>
@@ -440,10 +532,187 @@ function CreditWalletModal({
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginBottom: 8 }}>
+          <button
+            onClick={onSubmit}
+            disabled={submitting}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              background: C.indigo,
+              border: 0,
+              color: C.creamSoft,
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: submitting ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-fraunces), serif",
+            }}
+          >
+            {submitting ? "Ajustement…" : "Créditer / débiter"}
+          </button>
+        </div>
+
+        <button
+          onClick={onClearAdminTx}
+          disabled={!!referralBusy}
+          style={{
+            width: "100%",
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: "rgba(214,46,85,0.08)",
+            border: `1px solid rgba(214,46,85,0.18)`,
+            color: C.coralDeep,
+            fontSize: 12,
+            fontWeight: 700,
+            cursor: referralBusy ? "not-allowed" : "pointer",
+            fontFamily: "var(--font-fraunces), serif",
+            marginBottom: 22,
+          }}
+        >
+          🧹 Annuler tous mes ajustements (efface les lignes admin de l'activité)
+        </button>
+
+        {/* TEMP-ADMIN-FIX: Parrainage section */}
+        <div style={{ borderTop: `1px solid ${C.line}`, paddingTop: 18, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: C.ink2, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 10 }}>
+            🎁 Parrainage
+          </div>
+
+          <label style={{ display: "block", fontSize: 12, color: C.ink2, marginBottom: 6, fontWeight: 600 }}>
+            Code parrainage
+          </label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <input
+              value={refCode}
+              onChange={(e) => setRefCode(e.target.value.toUpperCase())}
+              style={{
+                flex: 1,
+                height: 40,
+                padding: "0 14px",
+                borderRadius: 10,
+                border: `1px solid ${C.line}`,
+                background: C.bg,
+                fontSize: 14,
+                fontFamily: "var(--font-bricolage), sans-serif",
+                fontWeight: 700,
+                color: C.ink,
+                letterSpacing: "0.05em",
+              }}
+            />
+            <button
+              onClick={onChangeRefCode}
+              disabled={!!referralBusy}
+              style={{
+                padding: "0 16px",
+                borderRadius: 10,
+                background: C.indigo,
+                border: 0,
+                color: C.creamSoft,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: referralBusy ? "not-allowed" : "pointer",
+                fontFamily: "var(--font-fraunces), serif",
+              }}
+            >
+              Changer
+            </button>
+          </div>
+
+          <label style={{ display: "block", fontSize: 12, color: C.ink2, marginBottom: 6, fontWeight: 600 }}>
+            Créer des faux filleuls
+          </label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input
+              value={fakeCount}
+              onChange={(e) => setFakeCount(e.target.value)}
+              placeholder="Nombre"
+              inputMode="numeric"
+              style={{
+                width: 80,
+                height: 40,
+                padding: "0 12px",
+                borderRadius: 10,
+                border: `1px solid ${C.line}`,
+                background: C.bg,
+                fontSize: 14,
+                fontWeight: 700,
+                color: C.ink,
+                textAlign: "center",
+              }}
+            />
+            <input
+              value={fakeAmount}
+              onChange={(e) => setFakeAmount(e.target.value)}
+              placeholder="Total FCFA gagné"
+              inputMode="numeric"
+              style={{
+                flex: 1,
+                height: 40,
+                padding: "0 12px",
+                borderRadius: 10,
+                border: `1px solid ${C.line}`,
+                background: C.bg,
+                fontSize: 14,
+                fontWeight: 700,
+                color: C.ink,
+              }}
+            />
+            <button
+              onClick={onCreateFakes}
+              disabled={!!referralBusy}
+              style={{
+                padding: "0 14px",
+                borderRadius: 10,
+                background: C.mango,
+                border: 0,
+                color: C.ink,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: referralBusy ? "not-allowed" : "pointer",
+                fontFamily: "var(--font-fraunces), serif",
+              }}
+            >
+              Créer
+            </button>
+          </div>
+          <button
+            onClick={onDeleteFakes}
+            disabled={!!referralBusy}
+            style={{
+              width: "100%",
+              padding: "8px 14px",
+              borderRadius: 10,
+              background: "rgba(214,46,85,0.08)",
+              border: `1px solid rgba(214,46,85,0.18)`,
+              color: C.coralDeep,
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: referralBusy ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-fraunces), serif",
+            }}
+          >
+            🧹 Supprimer tous les faux filleuls
+          </button>
+        </div>
+
+        {referralMsg && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: referralMsg.ok ? "rgba(92,138,69,0.12)" : "rgba(214,46,85,0.08)",
+              color: referralMsg.ok ? C.green : C.coralDeep,
+              fontSize: 13,
+              marginBottom: 14,
+            }}
+          >
+            {referralMsg.text}
+          </div>
+        )}
+
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button
             onClick={onClose}
-            disabled={submitting}
             style={{
               padding: "10px 18px",
               borderRadius: 10,
@@ -452,31 +721,12 @@ function CreditWalletModal({
               color: C.ink,
               fontSize: 13,
               fontWeight: 600,
-              cursor: submitting ? "not-allowed" : "pointer",
+              cursor: "pointer",
               fontFamily: "var(--font-fraunces), serif",
             }}
           >
-            {result?.ok ? "Fermer" : "Annuler"}
+            Fermer
           </button>
-          {!result?.ok && (
-            <button
-              onClick={onSubmit}
-              disabled={submitting}
-              style={{
-                padding: "10px 18px",
-                borderRadius: 10,
-                background: C.indigo,
-                border: 0,
-                color: C.creamSoft,
-                fontSize: 13,
-                fontWeight: 700,
-                cursor: submitting ? "not-allowed" : "pointer",
-                fontFamily: "var(--font-fraunces), serif",
-              }}
-            >
-              {submitting ? "Ajustement…" : "Confirmer"}
-            </button>
-          )}
         </div>
       </div>
     </div>
