@@ -62,6 +62,8 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | Kyc>("all");
   const [q, setQ] = useState("");
+  // TEMP-CREDIT-WALLET: user actuellement ouvert dans le modal. À retirer après les captures.
+  const [creditTarget, setCreditTarget] = useState<UserRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -277,20 +279,22 @@ export default function UsersPage() {
                 </div>
                 <div style={{ fontFamily: "var(--font-bricolage), sans-serif", fontWeight: 600 }}>{u.sentCount}</div>
                 <div style={{ textAlign: "right" }}>
+                  {/* TEMP-CREDIT-WALLET: bouton temporaire pour captures Play Store. À retirer après. */}
                   <button
+                    onClick={() => setCreditTarget(u)}
                     style={{
                       padding: "6px 10px",
                       borderRadius: 8,
-                      background: "transparent",
-                      border: `1px solid ${C.line}`,
+                      background: C.mango,
+                      border: 0,
                       color: C.ink,
                       fontSize: 11,
-                      fontWeight: 600,
+                      fontWeight: 700,
                       cursor: "pointer",
                       fontFamily: "var(--font-fraunces), serif",
                     }}
                   >
-                    Voir →
+                    💰 Créditer
                   </button>
                 </div>
               </div>
@@ -298,7 +302,184 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {/* TEMP-CREDIT-WALLET: modal temporaire. À retirer en même temps que le bouton ci-dessus. */}
+      {creditTarget && (
+        <CreditWalletModal
+          user={creditTarget}
+          onClose={() => setCreditTarget(null)}
+        />
+      )}
     </>
+  );
+}
+
+// TEMP-CREDIT-WALLET: composant temporaire. À retirer après les captures Play Store.
+function CreditWalletModal({
+  user,
+  onClose,
+}: {
+  user: UserRow;
+  onClose: () => void;
+}) {
+  const [amount, setAmount] = useState<string>("120000");
+  const [reason, setReason] = useState<string>("Play Store screenshot");
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  async function onSubmit() {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n === 0) {
+      setResult({ ok: false, message: "Montant invalide (doit être un nombre non nul)" });
+      return;
+    }
+    if (submitting) return;
+    setSubmitting(true);
+    setResult(null);
+    try {
+      const res = await api.post<{ ok: boolean; userId: string; newBalance: number; adjusted: number }>(
+        `/v1/admin/users/${user.id}/credit-wallet`,
+        { amount: n, reason: reason.trim() || "admin adjustment" }
+      );
+      setResult({
+        ok: true,
+        message: `Nouveau solde : ${formatNumber(res.newBalance)} FCFA (ajustement ${n > 0 ? "+" : ""}${formatNumber(n)})`,
+      });
+    } catch (e) {
+      setResult({ ok: false, message: (e as { message?: string }).message ?? "Échec de l'ajustement" });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(42,15,26,0.45)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 50,
+        padding: 20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 440,
+          background: C.surface,
+          borderRadius: 18,
+          padding: 24,
+          boxShadow: "0 24px 60px rgba(42,15,26,0.25)",
+        }}
+      >
+        <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 700, fontSize: 18, color: C.ink, marginBottom: 4 }}>
+          Créditer le wallet
+        </div>
+        <div style={{ fontSize: 13, color: C.ink2, marginBottom: 18 }}>
+          {user.name} · {user.phone}
+        </div>
+
+        <label style={{ display: "block", fontSize: 12, color: C.ink2, marginBottom: 6, fontWeight: 600 }}>
+          Montant (FCFA) — négatif pour débiter
+        </label>
+        <input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          inputMode="numeric"
+          style={{
+            width: "100%",
+            height: 44,
+            padding: "0 14px",
+            borderRadius: 10,
+            border: `1px solid ${C.line}`,
+            background: C.bg,
+            fontSize: 16,
+            fontFamily: "var(--font-bricolage), sans-serif",
+            fontWeight: 700,
+            color: C.ink,
+            marginBottom: 14,
+          }}
+        />
+
+        <label style={{ display: "block", fontSize: 12, color: C.ink2, marginBottom: 6, fontWeight: 600 }}>
+          Raison
+        </label>
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          style={{
+            width: "100%",
+            height: 40,
+            padding: "0 14px",
+            borderRadius: 10,
+            border: `1px solid ${C.line}`,
+            background: C.bg,
+            fontSize: 13,
+            color: C.ink,
+            marginBottom: 18,
+          }}
+        />
+
+        {result && (
+          <div
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: result.ok ? "rgba(92,138,69,0.12)" : "rgba(214,46,85,0.08)",
+              color: result.ok ? C.green : C.coralDeep,
+              fontSize: 13,
+              marginBottom: 14,
+            }}
+          >
+            {result.message}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              background: "transparent",
+              border: `1px solid ${C.line}`,
+              color: C.ink,
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: submitting ? "not-allowed" : "pointer",
+              fontFamily: "var(--font-fraunces), serif",
+            }}
+          >
+            {result?.ok ? "Fermer" : "Annuler"}
+          </button>
+          {!result?.ok && (
+            <button
+              onClick={onSubmit}
+              disabled={submitting}
+              style={{
+                padding: "10px 18px",
+                borderRadius: 10,
+                background: C.indigo,
+                border: 0,
+                color: C.creamSoft,
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: submitting ? "not-allowed" : "pointer",
+                fontFamily: "var(--font-fraunces), serif",
+              }}
+            >
+              {submitting ? "Ajustement…" : "Confirmer"}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
