@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { C } from "@/lib/colors";
 import { TopBar } from "@/components/TopBar";
 import { api, formatNumber } from "@/lib/api";
@@ -58,6 +59,7 @@ const FILTERS: { key: "all" | Kyc; label: string }[] = [
 ];
 
 export default function UsersPage() {
+  const router = useRouter();
   const [items, setItems] = useState<UserRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | Kyc>("all");
@@ -278,6 +280,7 @@ export default function UsersPage() {
                 <div style={{ fontFamily: "var(--font-bricolage), sans-serif", fontWeight: 600 }}>{u.sentCount}</div>
                 <div style={{ textAlign: "right" }}>
                   <button
+                    onClick={() => router.push(`/users/${u.id}`)}
                     style={{
                       padding: "6px 10px",
                       borderRadius: 8,
