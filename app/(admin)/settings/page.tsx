@@ -12,7 +12,6 @@ type SettingKey =
   | "referral_lifetime_active"
   | "channel_push"
   | "channel_email"
-  | "channel_sms"
   | "channel_whatsapp";
 
 type SettingsResponse = {
@@ -185,7 +184,6 @@ export default function SettingsPage() {
                 [
                   { key: "channel_push" as const, name: "Push (in-app)", emoji: "🔔" },
                   { key: "channel_email" as const, name: "Email transactionnel", emoji: "✉️" },
-                  { key: "channel_sms" as const, name: "SMS (OTP, alertes)", emoji: "💬" },
                   { key: "channel_whatsapp" as const, name: "WhatsApp Business", emoji: "📲" },
                 ]
               ).map((n, i, arr) => (

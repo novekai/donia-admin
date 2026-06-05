@@ -12,6 +12,7 @@ type NavItem = {
   label: string;
   badgeKey?: keyof Badges;
   badgeColor?: "coral" | "mint";
+  staticBadge?: { label: string; color: "mint" | "coral" }; // ex: "NEW"
   icon: (color: string) => React.ReactNode;
 };
 
@@ -82,6 +83,31 @@ const NAV: NavItem[] = [
         <path d="M3 11V9a4 4 0 0 1 4-4h14" />
         <polyline points="7 23 3 19 7 15" />
         <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+      </svg>
+    ),
+  },
+  {
+    href: "/circles",
+    label: "Contacts associés",
+    staticBadge: { label: "NEW", color: "mint" },
+    icon: (c) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="9" cy="9" r="4" />
+        <circle cx="18" cy="14" r="3" />
+        <circle cx="6" cy="18" r="3" />
+        <line x1="9" y1="13" x2="6" y2="15" />
+        <line x1="13" y1="11" x2="15" y2="13" />
+      </svg>
+    ),
+  },
+  {
+    href: "/birthday-campaigns",
+    label: "Campagnes email",
+    staticBadge: { label: "NEW", color: "mint" },
+    icon: (c) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <polyline points="3 7 12 13 21 7" />
       </svg>
     ),
   },
@@ -259,6 +285,22 @@ export function Sidebar() {
               )}
               {item.icon(on ? C.mango : C.creamSoft)}
               <span style={{ flex: 1 }}>{item.label}</span>
+              {item.staticBadge && (
+                <span
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: 5,
+                    background: item.staticBadge.color === "mint" ? C.mint : C.coral,
+                    color: C.indigoDeep,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: "var(--font-bricolage), sans-serif",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {item.staticBadge.label}
+                </span>
+              )}
               {showBadge && (
                 <span
                   style={{
