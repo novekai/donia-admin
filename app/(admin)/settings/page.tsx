@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 type SettingKey =
   | "commission_rate"
   | "min_card_amount"
+  | "min_withdrawal_amount"
   | "max_amount_no_kyc"
   | "referral_lifetime_active"
   | "channel_push"
@@ -118,6 +119,14 @@ export default function SettingsPage() {
                 onCommit={(v) => update("min_card_amount", v)}
                 busy={saving === "min_card_amount"}
                 saved={saved === "min_card_amount"}
+              />
+              <NumberField
+                label="Montant minimum d'un retrait"
+                suffix="FCFA"
+                value={data.settings.min_withdrawal_amount as number}
+                onCommit={(v) => update("min_withdrawal_amount", v)}
+                busy={saving === "min_withdrawal_amount"}
+                saved={saved === "min_withdrawal_amount"}
               />
               <NumberField
                 label="Montant maximum sans KYC"
