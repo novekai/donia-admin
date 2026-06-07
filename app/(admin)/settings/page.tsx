@@ -9,6 +9,7 @@ type SettingKey =
   | "commission_rate"
   | "min_card_amount"
   | "min_withdrawal_amount"
+  | "max_auto_payout_amount"
   | "max_amount_no_kyc"
   | "referral_lifetime_active"
   | "channel_push"
@@ -127,6 +128,14 @@ export default function SettingsPage() {
                 onCommit={(v) => update("min_withdrawal_amount", v)}
                 busy={saving === "min_withdrawal_amount"}
                 saved={saved === "min_withdrawal_amount"}
+              />
+              <NumberField
+                label="Plafond payout auto (au-delà → validation manuelle)"
+                suffix="FCFA"
+                value={data.settings.max_auto_payout_amount as number}
+                onCommit={(v) => update("max_auto_payout_amount", v)}
+                busy={saving === "max_auto_payout_amount"}
+                saved={saved === "max_auto_payout_amount"}
               />
               <NumberField
                 label="Montant maximum sans KYC"
