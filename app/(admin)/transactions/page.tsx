@@ -28,6 +28,7 @@ type Tx = {
   counterpartyId: string | null;
   createdAt: string;
   user: { id: string; name: string } | null;
+  metadata: Record<string, unknown> | null;
 };
 
 type ApiResponse = {
@@ -61,12 +62,21 @@ const STATUS_MAP: Record<Status, { l: string; bg: string; c: string }> = {
 
 const FILTERS: { key: "all" | TxType; label: string }[] = [
   { key: "all", label: "Toutes" },
+  { key: "WITHDRAWAL", label: "Retraits" },
   { key: "SEND", label: "Envois" },
   { key: "RECEIVE", label: "Réceptions" },
   { key: "TOPUP_MOBILE_MONEY", label: "Recharges" },
   { key: "COMMISSION", label: "Commissions" },
   { key: "REFERRAL_BONUS", label: "Parrainages" },
 ];
+
+const OPERATOR_LABEL: Record<string, string> = {
+  mtn: "MTN Mobile Money",
+  moov: "Moov Money",
+  orange: "Orange Money",
+  wave: "Wave",
+  bank_card: "Carte bancaire / IBAN",
+};
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -82,6 +92,15 @@ export default function TransactionsPage() {
   const [data, setData] = useState<ApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | TxType>("all");
+  const [busyTx, setBusyTx] = useState<string | null>(null);
+
+  function load() {
+    setError(null);
+    api
+      .get<ApiResponse>(`/v1/admin/transactions?type=${filter}`)
+      .then((d) => setData(d))
+      .catch((e) => setError((e as { message?: string }).message ?? "Chargement impossible"));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -99,6 +118,36 @@ export default function TransactionsPage() {
       cancelled = true;
     };
   }, [filter]);
+
+  async function markPaid(id: string) {
+    if (!confirm("Confirmer : ce retrait a bien été payé côté Mobile Money / banque ?")) return;
+    setBusyTx(id);
+    try {
+      await api.post(`/v1/admin/transactions/${id}/withdraw/mark-paid`, {});
+      load();
+    } catch (e) {
+      alert((e as { message?: string }).message ?? "Action impossible");
+    } finally {
+      setBusyTx(null);
+    }
+  }
+
+  async function refundWithdrawal(id: string, amount: number, userName: string) {
+    const reason = prompt(
+      `Annuler le retrait de ${formatNumber(amount)} FCFA de ${userName} et recréditer son solde ?\n\nRaison (optionnelle) :`,
+      "",
+    );
+    if (reason === null) return;
+    setBusyTx(id);
+    try {
+      await api.post(`/v1/admin/transactions/${id}/withdraw/refund`, { reason: reason || undefined });
+      load();
+    } catch (e) {
+      alert((e as { message?: string }).message ?? "Remboursement impossible");
+    } finally {
+      setBusyTx(null);
+    }
+  }
 
   const items = data?.items ?? [];
 
@@ -248,59 +297,130 @@ export default function TransactionsPage() {
             {items.map((t, i) => {
               const tm = TYPE_MAP[t.type];
               const sm = STATUS_MAP[t.status];
+              const isWithdrawalPending = t.type === "WITHDRAWAL" && t.status === "PENDING";
+              const meta = t.metadata as { operator?: string; phoneNumber?: string; accountNumber?: string; currency?: string } | null;
               return (
-                <div
-                  key={t.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 0.9fr 1.1fr 0.8fr 0.8fr 0.8fr",
-                    padding: "12px 20px",
-                    borderBottom: i < items.length - 1 ? `1px solid ${C.line}` : 0,
-                    alignItems: "center",
-                    fontSize: 12,
-                  }}
-                >
-                  <span style={{ fontFamily: "monospace", fontSize: 11, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {t.ref ?? t.id.slice(0, 12)}
-                  </span>
-                  <span
+                <div key={t.id} style={{ borderBottom: i < items.length - 1 ? `1px solid ${C.line}` : 0 }}>
+                  <div
                     style={{
-                      display: "inline-flex",
+                      display: "grid",
+                      gridTemplateColumns: "1fr 0.9fr 1.1fr 0.8fr 0.8fr 0.8fr",
+                      padding: "12px 20px",
                       alignItems: "center",
-                      gap: 4,
-                      padding: "3px 7px",
-                      borderRadius: 5,
-                      background: `${tm.c}22`,
-                      color: tm.c,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      width: "fit-content",
+                      fontSize: 12,
                     }}
                   >
-                    <span style={{ fontSize: 12 }}>{tm.emoji}</span> {tm.l}
-                  </span>
-                  <span style={{ fontWeight: 600 }}>{t.user?.name ?? "—"}</span>
-                  <span style={{ fontFamily: "var(--font-bricolage), sans-serif", fontWeight: 700 }}>
-                    {formatNumber(t.amount)}
-                  </span>
-                  <span
-                    style={{
-                      padding: "3px 7px",
-                      borderRadius: 5,
-                      background: sm.bg,
-                      color: sm.c,
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: "0.04em",
-                      width: "fit-content",
-                    }}
-                  >
-                    {sm.l}
-                  </span>
-                  <span style={{ fontSize: 11, color: C.ink2, fontFamily: "var(--font-fraunces), serif", fontStyle: "italic" }}>
-                    {formatDate(t.createdAt)}
-                  </span>
+                    <span style={{ fontFamily: "monospace", fontSize: 11, color: C.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {t.ref ?? t.id.slice(0, 12)}
+                    </span>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "3px 7px",
+                        borderRadius: 5,
+                        background: `${tm.c}22`,
+                        color: tm.c,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        width: "fit-content",
+                      }}
+                    >
+                      <span style={{ fontSize: 12 }}>{tm.emoji}</span> {tm.l}
+                    </span>
+                    <span style={{ fontWeight: 600 }}>{t.user?.name ?? "—"}</span>
+                    <span style={{ fontFamily: "var(--font-bricolage), sans-serif", fontWeight: 700 }}>
+                      {formatNumber(t.amount)}
+                    </span>
+                    <span
+                      style={{
+                        padding: "3px 7px",
+                        borderRadius: 5,
+                        background: sm.bg,
+                        color: sm.c,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        width: "fit-content",
+                      }}
+                    >
+                      {sm.l}
+                    </span>
+                    <span style={{ fontSize: 11, color: C.ink2, fontFamily: "var(--font-fraunces), serif", fontStyle: "italic" }}>
+                      {formatDate(t.createdAt)}
+                    </span>
+                  </div>
+
+                  {/* Encart actions retrait PENDING */}
+                  {isWithdrawalPending && (
+                    <div
+                      style={{
+                        padding: "12px 20px 16px",
+                        background: "rgba(249,160,28,0.06)",
+                        borderTop: `1px dashed ${C.line}`,
+                        display: "flex",
+                        gap: 16,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 240 }}>
+                        <div style={{ fontSize: 11, color: C.ink2, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
+                          Destination du payout
+                        </div>
+                        <div style={{ fontSize: 13, color: C.ink, fontFamily: "monospace" }}>
+                          {OPERATOR_LABEL[meta?.operator ?? ""] ?? meta?.operator ?? "—"}
+                          {" · "}
+                          <span style={{ fontWeight: 700 }}>{meta?.phoneNumber ?? meta?.accountNumber ?? "—"}</span>
+                        </div>
+                        {meta?.currency === "EUR" && (
+                          <div style={{ fontSize: 11, color: C.ink2, fontStyle: "italic", marginTop: 2 }}>
+                            Saisi en EUR par l’utilisateur (parité fixe 655.957)
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => markPaid(t.id)}
+                        disabled={busyTx === t.id}
+                        style={{
+                          height: 36,
+                          padding: "0 14px",
+                          borderRadius: 10,
+                          background: C.green,
+                          color: C.creamSoft,
+                          border: 0,
+                          fontFamily: "var(--font-fraunces), serif",
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: busyTx === t.id ? "not-allowed" : "pointer",
+                          opacity: busyTx === t.id ? 0.6 : 1,
+                        }}
+                      >
+                        ✓ Marquer payé
+                      </button>
+                      <button
+                        onClick={() => refundWithdrawal(t.id, t.amount, t.user?.name ?? "ce user")}
+                        disabled={busyTx === t.id}
+                        style={{
+                          height: 36,
+                          padding: "0 14px",
+                          borderRadius: 10,
+                          background: "transparent",
+                          color: C.coralDeep,
+                          border: `1px solid ${C.coralDeep}`,
+                          fontFamily: "var(--font-fraunces), serif",
+                          fontWeight: 600,
+                          fontSize: 12,
+                          cursor: busyTx === t.id ? "not-allowed" : "pointer",
+                          opacity: busyTx === t.id ? 0.6 : 1,
+                        }}
+                      >
+                        ↺ Annuler + recréditer
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
