@@ -11,15 +11,21 @@ type SettingKey =
   | "min_withdrawal_amount"
   | "max_auto_payout_amount"
   | "max_amount_no_kyc"
+  | "active_payment_provider"
   | "referral_lifetime_active"
   | "channel_push"
   | "channel_email"
   | "channel_whatsapp";
 
 type SettingsResponse = {
-  settings: Record<SettingKey, number | boolean>;
+  settings: Record<SettingKey, number | boolean | string>;
   admins: string[];
 };
+
+const PROVIDERS: { value: "fedapay" | "kkiapay"; label: string; sub: string }[] = [
+  { value: "fedapay", label: "FedaPay", sub: "MTN, Moov, Orange, Wave + carte bancaire" },
+  { value: "kkiapay", label: "KKiaPay", sub: "MTN, Moov, Orange, Wave (frais plus bas)" },
+];
 
 const OPERATORS = [
   { name: "MTN", countries: "Bénin · Côte d'Ivoire", live: true, c: C.mango },
@@ -56,7 +62,7 @@ export default function SettingsPage() {
     load();
   }, []);
 
-  async function update(key: SettingKey, value: number | boolean) {
+  async function update(key: SettingKey, value: number | boolean | string) {
     if (!data) return;
     setSaving(key);
     // Optimistic update so toggles feel snappy.
@@ -102,6 +108,65 @@ export default function SettingsPage() {
 
         {data && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            {/* Provider de paiement — PRIORITÉ : impacte toutes les recharges et retraits */}
+            <div style={{ gridColumn: "1 / -1" }}>
+              <Card
+                title="Provider de paiement actif"
+                subtitle="Toutes les recharges + retraits passent par ce PSP · switch instantané (cache 60s)"
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {PROVIDERS.map((p) => {
+                    const isActive = (data.settings.active_payment_provider as string) === p.value;
+                    return (
+                      <button
+                        key={p.value}
+                        onClick={() => update("active_payment_provider", p.value)}
+                        disabled={saving === "active_payment_provider"}
+                        style={{
+                          padding: "16px 18px",
+                          borderRadius: 14,
+                          border: isActive ? `2px solid ${C.coral}` : `1px solid ${C.line}`,
+                          background: isActive ? "rgba(244,72,111,0.06)" : C.bg,
+                          cursor: saving === "active_payment_provider" ? "not-allowed" : "pointer",
+                          textAlign: "left",
+                          fontFamily: "inherit",
+                          position: "relative",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <div style={{ fontFamily: "var(--font-fraunces), serif", fontWeight: 600, fontSize: 16, color: C.ink }}>
+                            {p.label}
+                          </div>
+                          {isActive && (
+                            <span
+                              style={{
+                                padding: "2px 7px",
+                                borderRadius: 5,
+                                background: C.coral,
+                                color: C.creamSoft,
+                                fontSize: 10,
+                                fontWeight: 700,
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              ACTIF
+                            </span>
+                          )}
+                          {saved === "active_payment_provider" && isActive && (
+                            <span style={{ color: C.green, fontSize: 11, fontWeight: 700 }}>✓ Enregistré</span>
+                          )}
+                        </div>
+                        <div style={{ marginTop: 4, fontSize: 12, color: C.ink2 }}>{p.sub}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div style={{ marginTop: 12, fontSize: 11, color: C.ink2, fontStyle: "italic" }}>
+                  💡 Les clés API (FEDAPAY_SECRET_KEY, KKIAPAY_PRIVATE_KEY, etc.) restent configurées dans Railway. Si le provider sélectionné n'a pas ses clés, le système bascule automatiquement sur l'autre.
+                </div>
+              </Card>
+            </div>
+
             {/* Économique */}
             <Card title="Modèle économique" subtitle="Commission prélevée à la conversion · valeurs persistées en base">
               <NumberField
