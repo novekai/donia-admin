@@ -4,7 +4,9 @@
 const TOKEN_KEY = "donia.admin.token";
 const EMAIL_KEY = "donia.admin.email";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://donia-api-production.up.railway.app";
+// Doit pointer sur le backend Railway. Fallback aligne avec celui utilise par
+// le site web + le mobile (donia-backend-production), pas donia-api-production.
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://donia-backend-production.up.railway.app";
 
 export type ApiError = { status: number; code?: string; message: string };
 
