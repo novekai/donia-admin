@@ -57,7 +57,7 @@ export default function NewsletterPage() {
   const items = data?.items ?? [];
 
   function exportCsv() {
-    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "https://donia-backend-production.up.railway.app";
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "https://donia-api-production.up.railway.app";
     const token = typeof window !== "undefined" ? window.localStorage.getItem("donia_admin_token") : null;
     // On utilise fetch + blob pour ajouter le token Bearer dans le header
     fetch(`${apiBase}/v1/admin/newsletter/export`, {
