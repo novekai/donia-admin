@@ -15,6 +15,10 @@ type Cagnotte = {
   totalRaised: number;
   deadline: string | null;
   status: Status;
+  publicCode: string | null;
+  commissionPercent: number;
+  withdrawnAt: string | null;
+  withdrawnAmount: number | null;
   createdAt: string;
   owner: { id: string; name: string };
   contributionCount: number;
@@ -23,7 +27,7 @@ type Cagnotte = {
 type ApiResp = {
   items: Cagnotte[];
   nextCursor: string | null;
-  stats: { total: number; active: number; closed: number; cancelled: number; totalRaisedAll: number };
+  stats: { total: number; active: number; closed: number; cancelled: number; totalRaisedAll: number; totalCommissions: number };
 };
 
 const STATUS_MAP: Record<Status, { label: string; bg: string; color: string }> = {
@@ -108,16 +112,17 @@ export default function CagnottesPage() {
         )}
 
         {data && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 20 }}>
             {[
               { l: "Total", v: formatNumber(data.stats.total), sub: "toutes confondues" },
               { l: "En cours", v: formatNumber(data.stats.active), sub: "actives" },
               { l: "Clôturées", v: formatNumber(data.stats.closed), sub: "terminées" },
               { l: "Collecté total", v: `${formatNumber(data.stats.totalRaisedAll)} FCFA`, sub: "depuis lancement" },
+              { l: "Commissions Donia", v: `${formatNumber(data.stats.totalCommissions)} FCFA`, sub: "encaissées (retraits)", green: true },
             ].map((s) => (
               <div key={s.l} style={{ padding: "14px 18px", background: C.surface, borderRadius: 14, border: `1px solid ${C.line}` }}>
                 <div style={{ fontSize: 11, color: C.ink2, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>{s.l}</div>
-                <div style={{ marginTop: 6, fontFamily: "var(--font-bricolage), sans-serif", fontSize: 22, fontWeight: 700, color: C.ink }}>
+                <div style={{ marginTop: 6, fontFamily: "var(--font-bricolage), sans-serif", fontSize: 22, fontWeight: 700, color: s.green ? C.green : C.ink }}>
                   {s.v}
                 </div>
                 <div style={{ fontSize: 11, color: C.ink2, fontStyle: "italic", fontFamily: "var(--font-fraunces), serif", marginTop: 2 }}>
@@ -197,8 +202,26 @@ export default function CagnottesPage() {
                       <div style={{ marginTop: 2, fontSize: 12, color: C.ink2 }}>
                         Par <strong>{c.owner.name}</strong> · {c.contributionCount} contrib. · {formatDate(c.createdAt)}
                       </div>
+                      {c.publicCode && (
+                        <div style={{ marginTop: 4, display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, color: C.ink2 }}>Lien public :</span>
+                          <a
+                            href={`https://doniia.com/c/${c.publicCode}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: 11, color: C.indigo, fontFamily: "monospace", textDecoration: "underline" }}
+                          >
+                            doniia.com/c/{c.publicCode}
+                          </a>
+                        </div>
+                      )}
                       {c.description && (
                         <div style={{ marginTop: 6, fontSize: 13, color: C.ink2, fontStyle: "italic" }}>{c.description}</div>
+                      )}
+                      {c.withdrawnAt && c.withdrawnAmount !== null && (
+                        <div style={{ marginTop: 6, padding: "6px 10px", background: "rgba(92,138,69,0.10)", borderRadius: 6, fontSize: 11, color: C.green, fontWeight: 600 }}>
+                          ✓ Retrait effectué : {formatNumber(c.withdrawnAmount)} FCFA (commission Donia {formatNumber(c.totalRaised - c.withdrawnAmount)} FCFA · {c.commissionPercent}%) — {formatDate(c.withdrawnAt)}
+                        </div>
                       )}
                     </div>
                     {c.status === "ACTIVE" && (
