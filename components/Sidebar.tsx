@@ -135,6 +135,28 @@ const NAV: NavItem[] = [
     ),
   },
   {
+    href: "/newsletter",
+    label: "Newsletter",
+    staticBadge: { label: "NEW", color: "mint" },
+    icon: (c) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 8l9 6 9-6" />
+        <rect x="3" y="6" width="18" height="14" rx="2" />
+      </svg>
+    ),
+  },
+  {
+    href: "/analytics",
+    label: "Analytics site",
+    staticBadge: { label: "NEW", color: "mint" },
+    icon: (c) => (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="3 17 9 11 13 15 21 7" />
+        <polyline points="14 7 21 7 21 14" />
+      </svg>
+    ),
+  },
+  {
     href: "/kyc",
     label: "KYC à valider",
     badgeKey: "kycPending",
