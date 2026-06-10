@@ -9,6 +9,7 @@ type SettingKey =
   | "commission_rate"
   | "min_card_amount"
   | "min_withdrawal_amount"
+  | "withdrawal_fee_fixed"
   | "max_auto_payout_amount"
   | "max_amount_no_kyc"
   | "active_payment_provider"
@@ -193,6 +194,15 @@ export default function SettingsPage() {
                 onCommit={(v) => update("min_withdrawal_amount", v)}
                 busy={saving === "min_withdrawal_amount"}
                 saved={saved === "min_withdrawal_amount"}
+              />
+              <NumberField
+                label="Forfait de retrait (frais ajoutés au montant)"
+                suffix="FCFA"
+                value={data.settings.withdrawal_fee_fixed as number}
+                onCommit={(v) => update("withdrawal_fee_fixed", v)}
+                busy={saving === "withdrawal_fee_fixed"}
+                saved={saved === "withdrawal_fee_fixed"}
+                accent={C.green}
               />
               <NumberField
                 label="Plafond payout auto (au-delà → validation manuelle)"
