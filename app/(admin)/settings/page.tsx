@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 type SettingKey =
   | "commission_rate"
   | "min_card_amount"
+  | "card_send_fee_fixed"
   | "min_withdrawal_amount"
   | "withdrawal_fee_fixed"
   | "max_auto_payout_amount"
@@ -188,6 +189,15 @@ export default function SettingsPage() {
                 saved={saved === "min_card_amount"}
               />
               <NumberField
+                label="Forfait sur l'envoi d'une carte (couvre les frais de retrait du destinataire)"
+                suffix="FCFA"
+                value={data.settings.card_send_fee_fixed as number}
+                onCommit={(v) => update("card_send_fee_fixed", v)}
+                busy={saving === "card_send_fee_fixed"}
+                saved={saved === "card_send_fee_fixed"}
+                accent={C.green}
+              />
+              <NumberField
                 label="Montant minimum d'un retrait"
                 suffix="FCFA"
                 value={data.settings.min_withdrawal_amount as number}
@@ -196,13 +206,12 @@ export default function SettingsPage() {
                 saved={saved === "min_withdrawal_amount"}
               />
               <NumberField
-                label="Forfait de retrait (frais ajoutés au montant)"
+                label="Forfait sur retrait (0 par défaut — les frais sont déjà pris à l'envoi)"
                 suffix="FCFA"
                 value={data.settings.withdrawal_fee_fixed as number}
                 onCommit={(v) => update("withdrawal_fee_fixed", v)}
                 busy={saving === "withdrawal_fee_fixed"}
                 saved={saved === "withdrawal_fee_fixed"}
-                accent={C.green}
               />
               <NumberField
                 label="Plafond payout auto (au-delà → validation manuelle)"
