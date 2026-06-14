@@ -109,6 +109,54 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [adjusting, setAdjusting] = useState(false);
+
+  function reload() {
+    if (!userId) return;
+    api.get<UserDetail>(`/v1/admin/users/${userId}`).then(setUser).catch(() => {});
+  }
+
+  async function onAdjustWallet() {
+    if (!user) return;
+    const amountStr = window.prompt(
+      `Ajuster le solde de ${user.name}\n\n` +
+        `Tape un montant en FCFA :\n` +
+        `  • positif = créditer (ex: 52450)\n` +
+        `  • négatif = débiter (ex: -52450)`
+    );
+    if (!amountStr) return;
+    const amount = parseInt(amountStr, 10);
+    if (Number.isNaN(amount) || amount === 0) {
+      alert("Montant invalide.");
+      return;
+    }
+    const reason = window.prompt(
+      `Raison de l'ajustement (obligatoire, conservé en log) :\n\n` +
+        `Ex : "Crédit démo pour captures Play Store", "Geste commercial bug XYZ", etc.`
+    );
+    if (!reason || reason.trim().length < 3) {
+      alert("Raison obligatoire (3 caractères min).");
+      return;
+    }
+
+    setAdjusting(true);
+    try {
+      const result = await api.post<{ balanceBefore: number; balanceAfter: number }>(
+        `/v1/admin/users/${userId}/wallet/adjust`,
+        { amount, reason: reason.trim(), pocket: "principal" }
+      );
+      alert(
+        `✅ Solde ajusté.\n\n` +
+          `Avant : ${result.balanceBefore.toLocaleString("fr-FR")} FCFA\n` +
+          `Après : ${result.balanceAfter.toLocaleString("fr-FR")} FCFA`
+      );
+      reload();
+    } catch (e) {
+      alert(`❌ Échec : ${(e as { message?: string }).message ?? "erreur"}`);
+    } finally {
+      setAdjusting(false);
+    }
+  }
 
   useEffect(() => {
     if (!userId) return;
@@ -170,6 +218,28 @@ export default function UserDetailPage() {
         actions={
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <BackButton onClick={() => router.push("/users")} />
+            {!isDeleted && (
+              <button
+                onClick={onAdjustWallet}
+                disabled={adjusting}
+                title="Créditer ou débiter le solde principal de cet utilisateur"
+                style={{
+                  height: 40,
+                  padding: "0 14px",
+                  borderRadius: 12,
+                  background: C.indigo,
+                  color: "#fff",
+                  border: 0,
+                  fontFamily: "var(--font-fraunces), serif",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: adjusting ? "not-allowed" : "pointer",
+                  opacity: adjusting ? 0.6 : 1,
+                }}
+              >
+                {adjusting ? "Ajustement…" : "💰 Ajuster solde"}
+              </button>
+            )}
             {!isDeleted && (
               <button
                 onClick={onDelete}
